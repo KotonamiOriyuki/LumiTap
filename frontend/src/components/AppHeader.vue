@@ -1,23 +1,37 @@
 <!-- Created: Dec 13 16:30 -->
- <!-- Version 1.0 -->
+ <!-- Version 1.1 -->
   <!-- CopyRight Header -->
-<template>
+   <template>
   <header class="app-header">
     <div class="header-left">
       <router-link to="/" class="logo">LumiTap</router-link>
       <nav class="nav-links">
-        <router-link to="/">Forum</router-link>
-        <router-link to="/songs">Songs</router-link>
-        <router-link to="/rankings">Rankings</router-link>
+        <router-link to="/" :class="{ active: route.name === 'forum' }">Forum</router-link>
+        <router-link to="/songs" :class="{ active: route.name === 'songs' }">Songs</router-link>
+        <router-link to="/rankings" :class="{ active: route.name === 'rankings' }">Rankings</router-link>
       </nav>
     </div>
     <div class="header-right">
-      <!-- Placeholder, this will be filled after the register function is completed -->
+      <button v-if="userStore.isAuthenticated" class="upload-btn" @click="openUpload">Upload</button>
+      <router-link v-if="userStore.isAuthenticated" to="/me" class="user-avatar">
+        <img :src="userStore.user?.avatar || defaultAvatar" alt="avatar" />
+      </router-link>
+      <div v-else class="user-avatar" @click="openLogin">
+        <img :src="defaultAvatar" alt="avatar" />
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { inject } from 'vue'
+import { useRoute } from 'vue-router'
+import { useUserStore } from '../stores/user'
+
+const route = useRoute()
+const userStore = useUserStore()
+const openLogin = inject('openLogin')
+const openUpload = inject('openUpload')
 
 const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100"/><circle fill="%23666" cx="50" cy="35" r="20"/><ellipse fill="%23666" cx="50" cy="85" rx="35" ry="25"/></svg>'
 </script>
@@ -79,4 +93,33 @@ const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg
   gap: 15px;
 }
 
+.upload-btn {
+  background-color: #1a1a1a;
+  color: #00d4ff;
+  border: none;
+  padding: 6px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.upload-btn:hover {
+  background-color: #2a2a2a;
+}
+
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #1a1a1a;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 </style>

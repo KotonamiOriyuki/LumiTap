@@ -1,5 +1,5 @@
 <!-- Created: Dec 13, 16:50 -->
- <!-- Ver 1.0 -->
+<!-- Ver 1.1 -->
 <template>
   <div id="app">
     <AppHeader/>
@@ -7,29 +7,64 @@
     <main :class="'with-header'">
       <router-view />
     </main>
-    <AppFooter/>
 
+    <LoginDialog v-model="showLogin" @switch-to-register="switchToRegister" />
+    <RegisterDialog v-model="showRegister" @switch-to-login="switchToLogin" />
+    <AppFooter/>
   </div>
 </template>
 
 <script setup>
+import { ref, computed, provide, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useUserStore } from './stores/user'
 import AppHeader from './components/AppHeader.vue'
 import AppFooter from './components/AppFooter.vue'
+import LoginDialog from './components/LoginDialog.vue'
+import RegisterDialog from './components/RegisterDialog.vue'
 
 const route = useRoute()
+const userStore = useUserStore()
 
+const showLogin = ref(false)
+const showRegister = ref(false)
+const showUpload = ref(false)
+
+const isGamePlay = computed(() => route.name === 'gameplay')
+
+const switchToRegister = () => {
+  showLogin.value = false
+  showRegister.value = true
+}
+
+const switchToLogin = () => {
+  showRegister.value = false
+  showLogin.value = true
+}
+
+const openLogin = () => {
+  showLogin.value = true
+}
+
+const openUpload = () => {
+  showUpload.value = true
+}
+
+provide('openLogin', openLogin)
+provide('openUpload', openUpload)
+
+onMounted(() => {
+  userStore.checkAuth()
+})
 </script>
 
 <style scoped>
 #app {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
 main {
-  flex-grow: 1;
+  min-height: 100vh;
 }
 
 main.with-header {
