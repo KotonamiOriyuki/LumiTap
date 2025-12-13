@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+from .routes import auth
 
 app = FastAPI(title="LumiTap API", version="1.0.0")
 
@@ -21,7 +22,7 @@ if os.path.exists(uploads_path):
     app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 
 # Yiwen Wang: Required for further developments
-# app.include_router(routers)
+app.include_router(auth.router)
 
 @app.get("/")
 def root():

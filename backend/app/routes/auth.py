@@ -3,9 +3,9 @@
 # API Calls related to authentication
 
 from fastapi import APIRouter, HTTPException, Response
-from app.models.user import UserCreate, UserLogin, UserResponse
+from backend.app.models.user import UserCreate, UserLogin, UserResponse
 from backend.app.database import users_collection
-from app.utils.security import hash_password, verify_password, create_access_token
+from backend.app.utils.security import hash_password, verify_password, create_access_token
 import uuid
 
 router = APIRouter()
