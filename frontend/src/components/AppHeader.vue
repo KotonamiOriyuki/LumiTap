@@ -1,7 +1,4 @@
-<!-- Created: Dec 13 16:30 -->
- <!-- Version 1.1 -->
-  <!-- CopyRight Header -->
-   <template>
+<template>
   <header class="app-header">
     <div class="header-left">
       <router-link to="/" class="logo">LumiTap</router-link>

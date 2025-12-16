@@ -1,5 +1,5 @@
 <!-- Created: Dec 13 16:30 -->
-<!-- Version 1.1 -->
+<!-- Version 1.0 -->
 <!-- CopyRight Footer -->
 <template>
   <footer class="app-footer">

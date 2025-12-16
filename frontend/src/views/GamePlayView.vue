@@ -12,7 +12,9 @@
           <span class="song-info">{{ beatmapInfo?.title }} - {{ beatmapInfo?.artist }}</span>
         </div>
         <div class="header-right">
-<!--          Chenxi Liu: TODO 添加accuracy, score等信息-->
+<!--          Rongze Fan: Added score display function to the gameplay page-->
+          <div class="score-display">{{ currentScore.toLocaleString() }}</div>
+          <div class="accuracy-display">{{ currentAccuracy.toFixed(2) }}%</div>
         </div>
       </div>
 
@@ -41,7 +43,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../utils/api'
-import { getDifficultyStyle } from '../utils/scoring.js'
+import { getDifficultyStyle, calculateScore, getRank } from '../utils/scoring.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -110,6 +112,7 @@ const getCellStyle = (cell) => {
   return { backgroundColor: bgColor, borderColor }
 }
 
+// Rongze Fan: added realtime score refresh
 const updateScoreDisplay = () => {
   const total = greatCount.value + goodCount.value + missCount.value
   if (total === 0) {
@@ -117,6 +120,16 @@ const updateScoreDisplay = () => {
     currentScore.value = 0
     return
   }
+
+  const result = calculateScore(
+      greatCount.value,
+      goodCount.value,
+      missCount.value,
+      maxCombo.value,
+      totalNotes.value
+  )
+  currentScore.value = result.score
+  currentAccuracy.value = result.accuracy
 }
 
 // Chenxi Liu: Touching supports
@@ -233,10 +246,14 @@ const handleGameEnd = async () => {
   })
   updateScoreDisplay()
 
+  // Rongze Fan: added rank fetch
+  const rank = getRank(currentAccuracy.value)
 
   try {
     await api.post('/scores/submit', {
       bid: route.params.bid,
+      score: currentScore.value,
+      accuracy: currentAccuracy.value,
       great_count: greatCount.value,
       good_count: goodCount.value,
       miss_count: missCount.value,
@@ -248,6 +265,8 @@ const handleGameEnd = async () => {
 
   sessionStorage.setItem('gameResult', JSON.stringify({
     bid: route.params.bid,
+    score: currentScore.value,
+    accuracy: currentAccuracy.value,
     rank,
     greatCount: greatCount.value,
     goodCount: goodCount.value,
