@@ -1,5 +1,6 @@
 // Changelog: Dec 14 22:30 added songs view to the router
 // Dec 16 21:30 added result view to the router
+// Dec 18 21:00 added beatmapset detail, leaderboard, personal view of the project
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
@@ -22,6 +23,26 @@ const routes = [
         path: '/result/:bid',
         name: 'result',
         component: () => import('../views/ResultView.vue')
+    },
+    {
+        path: '/me',
+        name: 'me',
+        component: () => import('../views/ProfileView.vue')
+    },
+    {
+        path: '/rankings',
+        name: 'rankings',
+        component: () => import('../views/RankingsView.vue')
+    },
+    {
+        path: '/profile/:uid?',
+        name: 'profile',
+        component: () => import('../views/ProfileView.vue')
+    },
+    {
+        path: '/beatmap/:sid',
+        name: 'beatmap-detail',
+        component: () => import('../views/BeatmapDetailView.vue')
     },
 ]
 

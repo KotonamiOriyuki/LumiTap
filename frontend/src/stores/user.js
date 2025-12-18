@@ -36,6 +36,18 @@ export const useUserStore = defineStore('user', () => {
         return res.data
     }
 
+    // Jiarui Li: logout function and user update function
+    const logout = async () => {
+        await api.post('/auth/logout')
+        user.value = null
+        isAuthenticated.value = false
+    }
 
-    return { user, isAuthenticated, checkAuth, login, register }
+    const updateUser = (data) => {
+        if (user.value) {
+            Object.assign(user.value, data)
+        }
+    }
+
+    return { user, isAuthenticated, checkAuth, login, register, logout, updateUser }
 })
