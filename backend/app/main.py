@@ -1,11 +1,14 @@
 # Created: Dec 12, 15:30
-# Ver 1.0
+# Ver 1.2
+# Changelog:
+# Dec 14, 20:00 -> 1.1 Added beatmaps management router
+# Dec 15, 21:00 -> 1.2 Added score and session management router
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-from .routes import auth
+from .routes import auth, beatmaps, scores, users
 
 app = FastAPI(title="LumiTap API", version="1.0.0")
 
@@ -23,6 +26,9 @@ if os.path.exists(uploads_path):
 
 # Yiwen Wang: Required for further developments
 app.include_router(auth.router)
+app.include_router(beatmaps.router)
+app.include_router(scores.router)
+app.include_router(users.router)
 
 @app.get("/")
 def root():

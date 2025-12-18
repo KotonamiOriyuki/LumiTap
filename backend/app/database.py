@@ -1,9 +1,10 @@
 # Created: Dec 13 18:10
-# Version 1.0
+# Version 1.1
+# Changelog: Dec 14 20:05 -> changed the import of settings
 # Structure and abbv. of each database collections
 
 from pymongo import MongoClient
-from app.config import settings
+from backend.app.config import settings
 
 client = MongoClient(settings.MONGODB_URL)
 db = client[settings.DATABASE_NAME]

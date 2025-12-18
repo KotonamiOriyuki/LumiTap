@@ -1,38 +1,52 @@
 <!--Created: Dec 15, 21:00-->
-<!--Ver 1.0-->
+<!--Ver 1.1-->
 <!--The main playing page-->
+<!--Changed: Dec 17, Change to WebAudioAPI and music loading animation-->
 <template>
   <div class="gameplay-view" :style="{ backgroundImage: `url(${beatmapInfo?.background})` }">
     <div class="gameplay-overlay">
-      <div class="game-header">
-        <div class="header-left">
-          <div class="diff-badge" :style="diffStyle">
-            {{ diffInfo?.name }} {{ diffInfo?.level }}
+      <div class="loading-screen" v-if="!isReady">
+        <div class="loading-content">
+          <div class="loading-title">{{ beatmapInfo?.title || 'Loading...' }}</div>
+          <div class="loading-artist">{{ beatmapInfo?.artist }}</div>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: loadProgress + '%' }"></div>
           </div>
-          <span class="song-info">{{ beatmapInfo?.title }} - {{ beatmapInfo?.artist }}</span>
-        </div>
-        <div class="header-right">
-<!--          Chenxi Liu: TODO 添加accuracy, score等信息-->
+          <div class="progress-text">{{ loadProgress.toFixed(0) }}%</div>
         </div>
       </div>
 
-      <div class="game-content">
-        <div class="combo-display" v-if="combo > 0">{{ combo }}x</div>
-        <div class="game-grid">
-          <div
-              v-for="(cell, index) in cells"
-              :key="index"
-              class="game-cell"
-              :style="getCellStyle(cell)"
-              @touchstart.prevent="handleCellTouch(index)"
-              @mousedown="handleCellTouch(index)"
-          >
-            <span v-if="cell.text" class="cell-text">{{ cell.text }}</span>
+      <template v-else>
+        <div class="game-header">
+          <div class="header-left">
+            <div class="diff-badge" :style="diffStyle">
+              {{ diffInfo?.name }} {{ diffInfo?.level }}
+            </div>
+            <span class="song-info">{{ beatmapInfo?.title }} - {{ beatmapInfo?.artist }}</span>
+          </div>
+          <div class="header-right">
+            <div class="score-display">{{ currentScore.toLocaleString() }}</div>
+            <div class="accuracy-display">{{ currentAccuracy.toFixed(2) }}%</div>
           </div>
         </div>
-      </div>
 
-      <audio ref="audioRef" :src="beatmapInfo?.audio" @ended="handleGameEnd"></audio>
+        <div class="game-content">
+          <div class="combo-display" v-if="combo > 0">{{ combo }}x</div>
+          <div class="game-grid" ref="gridRef">
+            <div
+                v-for="(cell, index) in cells"
+                :key="index"
+                class="game-cell"
+                :class="{ active: cell.state !== 'idle' }"
+                :style="getCellStyle(cell)"
+                @touchstart.prevent="handleCellInput(index)"
+                @mousedown.left.prevent="handleCellInput(index)"
+            >
+              <span v-if="cell.text" class="cell-text">{{ cell.text }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -41,7 +55,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../utils/api'
-import { getDifficultyStyle } from '../utils/scoring.js'
+import { getDifficultyStyle, calculateScore, getRank } from '../utils/scoring.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,7 +63,16 @@ const router = useRouter()
 const beatmapInfo = ref(null)
 const diffInfo = ref(null)
 const chartData = ref(null)
-const audioRef = ref(null)
+
+// Rongze Fan: loading
+const isReady = ref(false)
+const loadProgress = ref(0)
+
+// Rongze Fan: webAudioAPI variables
+let audioContext = null
+let audioBuffer = null
+let audioSource = null
+let audioStartTime = 0
 
 const cells = reactive(Array(16).fill(null).map(() => ({
   state: 'idle',
@@ -67,8 +90,8 @@ const missCount = ref(0)
 const totalNotes = ref(0)
 
 const activeNotes = ref([])
-const gameStartTime = ref(0)
 const isPlaying = ref(false)
+let animationId = null
 
 // Zixiao Shen: The main keymap binding of cells
 const keyMap = {
@@ -77,6 +100,10 @@ const keyMap = {
   'a': 8, 's': 9, 'd': 10, 'f': 11,
   'z': 12, 'x': 13, 'c': 14, 'v': 15
 }
+
+// Rongze Fan: Animation settings
+const FADE_IN_DURATION = 160
+const JUDGMENT_OFFSET = 140
 
 const diffStyle = computed(() => {
   if (!diffInfo.value) return {}
@@ -110,6 +137,13 @@ const getCellStyle = (cell) => {
   return { backgroundColor: bgColor, borderColor }
 }
 
+// Rongze Fan: fetch precise game time
+const getCurrentTime = () => {
+  if (!audioContext || !audioStartTime) return 0
+  return (audioContext.currentTime - audioStartTime) * 1000
+}
+
+// Rongze Fan: added realtime score refresh
 const updateScoreDisplay = () => {
   const total = greatCount.value + goodCount.value + missCount.value
   if (total === 0) {
@@ -117,13 +151,24 @@ const updateScoreDisplay = () => {
     currentScore.value = 0
     return
   }
+
+  const result = calculateScore(
+      greatCount.value,
+      goodCount.value,
+      missCount.value,
+      maxCombo.value,
+      totalNotes.value
+  )
+  currentScore.value = result.score
+  currentAccuracy.value = result.accuracy
 }
 
 // Chenxi Liu: Touching supports
-const handleCellTouch = (cellIndex) => {
+// Rongze Fan: Change the function name
+const handleCellInput = (cellIndex) => {
   if (!isPlaying.value) return
 
-  const currentTime = Date.now() - gameStartTime.value
+  const currentTime = getCurrentTime()
 
   const noteIndex = activeNotes.value.findIndex(n => n.cell === cellIndex && !n.hit && !n.missed)
   if (noteIndex === -1) return
@@ -150,12 +195,13 @@ const handleCellTouch = (cellIndex) => {
 
 const handleKeyDown = (e) => {
   if (!isPlaying.value) return
+  if (e.repeat) return
 
   const key = e.key.toLowerCase()
   const cellIndex = keyMap[key]
   if (cellIndex === undefined) return
 
-  handleCellTouch(cellIndex)
+  handleCellInput(cellIndex)
 }
 
 const showFeedback = (cellIndex, state, text) => {
@@ -163,67 +209,120 @@ const showFeedback = (cellIndex, state, text) => {
   cells[cellIndex].opacity = 1
   cells[cellIndex].text = text
 
-  const fadeOut = () => {
-    let opacity = 1
-    const interval = setInterval(() => {
-      opacity -= 0.1
-      if (opacity <= 0) {
-        clearInterval(interval)
-        cells[cellIndex].state = 'idle'
-        cells[cellIndex].opacity = 0
-        cells[cellIndex].text = ''
-      } else {
-        cells[cellIndex].opacity = opacity
-      }
-    }, 15)
+  let opacity = 1
+  const fade = () => {
+    opacity -= 0.1
+    if (opacity <= 0) {
+      cells[cellIndex].state = 'idle'
+      cells[cellIndex].opacity = 0
+      cells[cellIndex].text = ''
+    } else {
+      cells[cellIndex].opacity = opacity
+      // Rongze Fan: use requestAnimationFrame to ensure efficient animation
+      requestAnimationFrame(fade)
+    }
   }
 
-  setTimeout(fadeOut, 50)
+  setTimeout(() => requestAnimationFrame(fade), 75)
 }
 
 
 const gameLoop = () => {
   if (!isPlaying.value) return
 
-  const currentTime = Date.now() - gameStartTime.value
-  const FADE_IN_DURATION = 300
-  const JUDGMENT_OFFSET = 65
+  // Rongze Fan: Adjustment to the changable time
+  const currentTime = getCurrentTime()
+  const JUDGMENT_WINDOW_END = -300
+  const GREAT_END = -140
+  const GOOD_END = -300
 
-  activeNotes.value.forEach(note => {
-    if (note.hit || note.missed) return
+  if (audioBuffer && currentTime >= audioBuffer.duration * 1000 + 500) {
+    handleGameEnd()
+    return
+  }
+
+  for (let i = 0; i < activeNotes.value.length; i++) {
+    const note = activeNotes.value[i]
+    if (note.hit || note.missed) continue
 
     const timeDiff = note.time - currentTime
 
-    if (timeDiff <= (JUDGMENT_OFFSET + FADE_IN_DURATION) && timeDiff > JUDGMENT_OFFSET) {
-      const progress = 1 - (timeDiff - JUDGMENT_OFFSET) / FADE_IN_DURATION
+    const fadeStart = JUDGMENT_OFFSET + FADE_IN_DURATION
+    const fadeEnd = JUDGMENT_OFFSET
+
+    if (timeDiff <= fadeStart && timeDiff > fadeEnd) {
+      const progress = 1 - (timeDiff - fadeEnd) / FADE_IN_DURATION
       cells[note.cell].state = 'tap'
       cells[note.cell].opacity = progress
-      cells[note.cell].text = 'Tap!'
+      cells[note.cell].text = ''
 
-    } else if (timeDiff <= JUDGMENT_OFFSET && timeDiff >= -140) {
+    } else if (timeDiff <= fadeEnd && timeDiff >= GREAT_END) {
       cells[note.cell].state = 'tap'
       cells[note.cell].opacity = 1
       cells[note.cell].text = 'Tap!'
 
-    } else if (timeDiff < -140 && timeDiff >= -300) {
+    } else if (timeDiff < GREAT_END && timeDiff >= GOOD_END) {
       cells[note.cell].state = 'tap'
       cells[note.cell].opacity = 1
       cells[note.cell].text = 'Tap!'
 
-    } else if (timeDiff < -300 && !note.missed) {
+    } else if (timeDiff < JUDGMENT_WINDOW_END && !note.missed) {
       note.missed = true
       missCount.value++
       combo.value = 0
       showFeedback(note.cell, 'miss', 'Miss!')
       updateScoreDisplay()
     }
-  })
+  }
 
-  requestAnimationFrame(gameLoop)
+  animationId = requestAnimationFrame(gameLoop)
+}
+
+// Rongze Fan: use webAudioAPI to ensure the precise playing time management
+const loadAudio = async (url) => {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+  const response = await fetch(url)
+  const total = parseInt(response.headers.get('content-length') || '0')
+  const reader = response.body.getReader()
+
+  let received = 0
+  const chunks = []
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    chunks.push(value)
+    received += value.length
+
+    if (total > 0) {
+      loadProgress.value = (received / total) * 100
+    } else {
+      loadProgress.value = Math.min(loadProgress.value + 10, 90)
+    }
+  }
+
+  const arrayBuffer = new Uint8Array(received)
+  let position = 0
+  for (const chunk of chunks) {
+    arrayBuffer.set(chunk, position)
+    position += chunk.length
+  }
+
+  loadProgress.value = 95
+  audioBuffer = await audioContext.decodeAudioData(arrayBuffer.buffer)
+  loadProgress.value = 100
 }
 
 const handleGameEnd = async () => {
+  if (!isPlaying.value) return
   isPlaying.value = false
+
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  }
 
   activeNotes.value.forEach(note => {
     if (!note.hit && !note.missed) {
@@ -233,10 +332,13 @@ const handleGameEnd = async () => {
   })
   updateScoreDisplay()
 
+  const rank = getRank(currentAccuracy.value)
 
   try {
     await api.post('/scores/submit', {
       bid: route.params.bid,
+      score: currentScore.value,
+      accuracy: currentAccuracy.value,
       great_count: greatCount.value,
       good_count: goodCount.value,
       miss_count: missCount.value,
@@ -248,18 +350,19 @@ const handleGameEnd = async () => {
 
   sessionStorage.setItem('gameResult', JSON.stringify({
     bid: route.params.bid,
+    score: currentScore.value,
+    accuracy: currentAccuracy.value,
     rank,
     greatCount: greatCount.value,
     goodCount: goodCount.value,
     missCount: missCount.value,
     maxCombo: maxCombo.value
   }))
-
   router.push(`/result/${route.params.bid}`)
 }
 
 const startGame = () => {
-  if (!chartData.value || !audioRef.value) return
+  if (!chartData.value || !audioBuffer) return
 
   activeNotes.value = chartData.value.notes.map((note, index) => ({
     id: index,
@@ -271,32 +374,58 @@ const startGame = () => {
 
   totalNotes.value = activeNotes.value.length
   isPlaying.value = true
-  gameStartTime.value = Date.now()
 
-  audioRef.value.play()
+  audioSource = audioContext.createBufferSource()
+  audioSource.buffer = audioBuffer
+  audioSource.connect(audioContext.destination)
+  audioSource.onended = handleGameEnd
+
+  audioStartTime = audioContext.currentTime
+  audioSource.start(0)
+
   gameLoop()
 }
 
-onMounted(async () => {
+// Rongze Fan: waiting until all critical parts are loaded
+const init = async () => {
   try {
     const res = await api.get(`/beatmaps/difficulty/${route.params.bid}`)
     diffInfo.value = res.data
     beatmapInfo.value = res.data.beatmap
     chartData.value = res.data.chart_data
 
-    setTimeout(startGame, 1000)
+    await loadAudio(beatmapInfo.value.audio)
+
+    isReady.value = true
+
+    setTimeout(startGame, 500)
   } catch (e) {
     console.error('Failed to load difficulty')
   }
+}
 
+
+onMounted(() => {
   window.addEventListener('keydown', handleKeyDown)
+  init()
 })
 
 onUnmounted(() => {
   isPlaying.value = false
   window.removeEventListener('keydown', handleKeyDown)
-  if (audioRef.value) {
-    audioRef.value.pause()
+
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+  }
+
+  if (audioSource) {
+    try {
+      audioSource.stop()
+    } catch (e) {}
+  }
+
+  if (audioContext) {
+    audioContext.close()
   }
 })
 </script>
@@ -315,6 +444,52 @@ onUnmounted(() => {
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
+}
+
+/* Rongze Fan: Loading Style */
+.loading-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-content {
+  text-align: center;
+  width: 300px;
+}
+
+.loading-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.loading-artist {
+  font-size: 16px;
+  color: #aaaaaa;
+  margin-bottom: 30px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #333333;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #00d4ff;
+  transition: width 0.1s ease-out;
+}
+
+.progress-text {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #888888;
 }
 
 .game-header {
@@ -344,6 +519,18 @@ onUnmounted(() => {
 
 .header-right {
   text-align: right;
+}
+
+/* Rongze Fan: Score display style */
+.score-display {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.accuracy-display {
+  font-size: 16px;
+  color: #cccccc;
 }
 
 .game-content {
@@ -381,9 +568,24 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.05s, border-color 0.05s;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  will-change: background-color, border-color;
+
+  /* Rongze Fan: blur style */
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Rongze Fan: activated animations */
+
+.game-cell.active {
+  transition: none;
+}
+
+.game-cell:active {
+  transform: scale(0.95);
 }
 
 .cell-text {
