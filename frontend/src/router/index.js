@@ -1,13 +1,15 @@
 // Changelog: Dec 14 22:30 added songs view to the router
 // Dec 16 21:30 added result view to the router
 // Dec 18 21:00 added beatmapset detail, leaderboard, personal view of the project
+// Dec 19 22:00 added forum view
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
     {
+        // Zheng Wu: change the default page to the forum view
         path: '/',
         name: 'home',
-        component: () => import('../views/HomeView.vue')
+        component: () => import('../views/ForumView.vue')
     },
     {
         path: '/songs',
@@ -43,6 +45,21 @@ const routes = [
         path: '/beatmap/:sid',
         name: 'beatmap-detail',
         component: () => import('../views/BeatmapDetailView.vue')
+    },
+    {
+        path: '/forum',
+        name: 'forum',
+        component: () => import('../views/ForumView.vue')
+    },
+    {
+        path: '/forum/subforum/:id',
+        name: 'subforum',
+        component: () => import('../views/SubforumView.vue')
+    },
+    {
+        path: '/forum/thread/:id',
+        name: 'thread',
+        component: () => import('../views/ThreadView.vue')
     },
 ]
 
