@@ -1,7 +1,8 @@
 // Created: 23:00
-// Version 1.1
+// Version 1.2
 // Every scripts related to scoring systems
 // Changelog: Dec 16, 21:00 Added score calculation to the script
+// Changelog: Dec 18, 20:00 added EP color display
 
 // Chenxi Liu: obtain the color for different difficulties
 export function getDifficultyStyle(level) {
@@ -52,4 +53,17 @@ export function getRankColor(rank) {
     'D': '#f44336'
   }
   return colors[rank] || '#ffffff'
+}
+
+// Zheng Wu: implement EP color display on the personal information
+export function getEPColor(ep) {
+  if (ep < 5) return '#4caf50'
+  if (ep < 7) return '#2196f3'
+  if (ep < 9) return '#9c27b0'
+  if (ep < 10) return '#ffb300'
+  return '#ffd700'
+}
+
+export function isHighEP(ep) {
+  return ep >= 10
 }

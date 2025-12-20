@@ -34,3 +34,20 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Python 虚拟环境
+venv/
+.venv/
+env/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

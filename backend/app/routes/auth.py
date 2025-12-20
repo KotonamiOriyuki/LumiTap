@@ -1,6 +1,7 @@
 # Created: Dec 13 19:10
-# Version 1.0
+# Version 1.1
 # API Calls related to authentication
+# Changelog: Dec 18, 20:00 Added EP initialization of personal data
 
 from fastapi import APIRouter, HTTPException, Response
 from backend.app.models.user import UserCreate, UserLogin, UserResponse
@@ -26,6 +27,8 @@ def register(user: UserCreate, response: Response):
         "username": user.username,
         "password": hash_password(user.password),
         "avatar": None,
+    #     Jiarui Li: EP Display
+        "ep": 0.0
     }
     users_collection.insert_one(user_doc)
 
@@ -44,11 +47,17 @@ def login(user: UserLogin, response: Response):
 
     token = create_access_token({"uid": db_user["uid"]})
     response.set_cookie(key="access_token", value=token, httponly=True, max_age=30 * 24 * 60 * 60)
+    # Jiarui Li: newly added
+    all_users = list(users_collection.find().sort("ep", -1))
+    rank = next((i + 1 for i, u in enumerate(all_users) if u.get("uid") == db_user["uid"]), 0)
 
     return UserResponse(
         uid=db_user["uid"],
         username=db_user["username"],
         avatar=db_user.get("avatar"),
+    #     Jiarui Li: EP Display
+        ep=db_user.get("ep", 0.0),
+        rank=rank
     )
 
 

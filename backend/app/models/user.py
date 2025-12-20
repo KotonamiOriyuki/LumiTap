@@ -16,3 +16,6 @@ class UserResponse(BaseModel):
     uid: str
     username: str
     avatar: Optional[str] = None
+    # Jiarui Li: added personal EP calculation
+    ep: float = 0.0
+    rank: int = 0
