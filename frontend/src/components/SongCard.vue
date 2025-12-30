@@ -1,3 +1,8 @@
+<!--Created: Dec 14, 21:30-->
+<!--Ver 1.2-->
+<!--Card for displaying difficulties-->
+<!--Changelog: Dec 20, 19:00 Modified the style and fix the bug of neon light effects-->
+<!--Dec 30, 18:00 Hidden Author profile and shorten music name when space is limited-->
 <template>
   <div class="song-card" @click="goToDetail" @mouseenter="hovered = true" @mouseleave="hovered = false" :class="{ hovered }">
     <div class="song-inner" :style="{ backgroundImage: `url(${song.background || ''})` }">
@@ -13,8 +18,10 @@
                 :key="diff.bid"
                 :name="diff.name"
                 :level="diff.level"
+                :selected="false"
             />
           </div>
+<!--    Yiwen Wang: Remove Uploader Name   -->
           <div class="uploader">
             By: <router-link :to="`/profile/${song.uploader_uid}`" @click.stop>{{ song.uploader_name }}</router-link>
           </div>
@@ -95,6 +102,8 @@ const goToDetail = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
+  flex: 1;
 }
 
 .song-title {
@@ -111,12 +120,16 @@ const goToDetail = () => {
   font-size: 13px;
   color: #cccccc;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .song-right {
   display: flex;
   align-items: center;
   gap: 20px;
+  margin-left: 10px;
 }
 
 .difficulties {
@@ -140,5 +153,17 @@ const goToDetail = () => {
 
 .uploader a:hover {
   color: #66e5ff;
+}
+
+@media (max-width: 768px) {
+  .uploader {
+    display: none;
+  }
+  .song-right {
+    gap: 0;
+  }
+  .song-overlay {
+    padding: 0 15px;
+  }
 }
 </style>

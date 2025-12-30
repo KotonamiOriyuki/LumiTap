@@ -1,6 +1,7 @@
 <!--Created: Dec 18, 19:00-->
-<!--Ver 1.0-->
+<!--Ver 1.1-->
 <!--Component of leaderboard-->
+<!--Changelog: Hidden long description when space is limited-->
 <template>
   <div class="leaderboard-item" :class="{ odd: index % 2 === 1 }" @click="goToProfile">
     <div class="rank-bar" :style="rankBarStyle">
@@ -10,7 +11,9 @@
       <div class="rank-badge" :style="{ color: rankColor }">{{ rank }}</div>
       <div class="player-name">{{ username }}</div>
       <div class="score-info">
-        Score: {{ score.toLocaleString() }}, Accuracy: {{ accuracy }}%
+<!--    Yiwen Wang: Hidden several contents in mobile client    -->
+        <span class="desktop-text">Score: {{ score.toLocaleString() }}, Accuracy: {{ accuracy.toFixed(2) }}%</span>
+        <span class="mobile-text">{{ score.toLocaleString() }}, Acc {{ accuracy.toFixed(2) }}%</span>
       </div>
     </div>
   </div>
@@ -85,6 +88,7 @@ const goToProfile = () => {
   padding: 8px 15px;
   background-color: #333333;
   gap: 15px;
+  min-width: 0;
 }
 
 .rank-badge {
@@ -97,10 +101,30 @@ const goToProfile = () => {
   flex: 1;
   font-size: 14px;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .score-info {
   font-size: 13px;
   color: #aaaaaa;
+}
+
+.mobile-text {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-text {
+    display: none;
+  }
+  .mobile-text {
+    display: inline;
+  }
+  .item-content {
+    gap: 10px;
+    padding: 8px 10px;
+  }
 }
 </style>
