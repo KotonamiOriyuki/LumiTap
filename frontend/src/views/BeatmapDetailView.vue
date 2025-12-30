@@ -1,6 +1,7 @@
 <!--Created: Dec 17, 18:00-->
 <!--Ver 1.0-->
 <!--Preview of a beatmap set.-->
+<!--Changelog: Dec 30, 18:30 Mobile Client Adaption-->
 <template>
   <div class="beatmap-detail-view" v-if="beatmap">
     <div class="detail-container">
@@ -20,15 +21,18 @@
       </div>
 
       <div class="difficulty-selector">
-        <div
-          v-for="diff in beatmap.difficulties"
-          :key="diff.bid"
-          class="diff-item"
-          :class="{ selected: selectedDiff?.bid === diff.bid }"
-          :style="getDiffStyle(diff.level)"
-          @click="selectDifficulty(diff)"
-        >
-          {{ diff.name }} {{ diff.level }}
+        <div class="diff-list">
+          <DifficultyBadge
+              v-for="diff in beatmap.difficulties"
+              :key="diff.bid"
+              :name="diff.name"
+              :level="diff.level"
+              :selected="selectedDiff?.bid === diff.bid"
+              :is-large="true"
+              class="diff-item"
+              :class="{ selected: selectedDiff?.bid === diff.bid }"
+              @click="selectDifficulty(diff)"
+          />
         </div>
         <button class="play-btn" @click="startPlay">Play</button>
       </div>
@@ -36,15 +40,15 @@
       <h2 class="leaderboard-title">Leaderboard</h2>
       <div class="leaderboard-card">
         <LeaderboardItem
-          v-for="(score, index) in leaderboard"
-          :key="score.scid"
-          :position="score.position"
-          :uid="score.uid"
-          :username="score.username"
-          :score="score.score"
-          :accuracy="score.accuracy"
-          :rank="score.rank"
-          :index="index"
+            v-for="(score, index) in leaderboard"
+            :key="score.scid"
+            :position="score.position"
+            :uid="score.uid"
+            :username="score.username"
+            :score="score.score"
+            :accuracy="score.accuracy"
+            :rank="score.rank"
+            :index="index"
         />
         <div v-if="leaderboard.length === 0" class="no-scores">
           No scores yet
@@ -55,12 +59,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { getDifficultyStyle } from '../utils/scoring'
 import api from '../utils/api'
 import LeaderboardItem from '../components/LeaderboardItem.vue'
+import DifficultyBadge from '../components/DifficultyBadge.vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -70,14 +74,6 @@ const userStore = useUserStore()
 const beatmap = ref(null)
 const selectedDiff = ref(null)
 const leaderboard = ref([])
-
-const getDiffStyle = (level) => {
-  const style = getDifficultyStyle(level)
-  return {
-    backgroundColor: style.bg,
-    color: style.text
-  }
-}
 
 const selectDifficulty = (diff) => {
   selectedDiff.value = diff
@@ -189,13 +185,16 @@ onMounted(async () => {
   border-radius: 0 0 7px 7px;
 }
 
+.diff-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .diff-item {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: bold;
   cursor: pointer;
   transition: box-shadow 0.2s;
+  border-radius: 4px;
 }
 
 .diff-item.selected {
@@ -213,6 +212,7 @@ onMounted(async () => {
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s;
+  flex-shrink: 0;
 }
 
 .play-btn:hover {
@@ -236,5 +236,25 @@ onMounted(async () => {
   padding: 30px;
   text-align: center;
   color: #666666;
+}
+
+// Mobile client adaption
+@media (max-width: 768px) {
+  .beatmap-detail-view {
+    padding: 10px;
+  }
+  .difficulty-selector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .play-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+  .header-top {
+    flex-direction: column;
+    gap: 5px;
+  }
 }
 </style>
