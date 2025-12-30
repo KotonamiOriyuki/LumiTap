@@ -1,47 +1,27 @@
 <!--Created Dec 16, 21:00-->
 <!--Views of a gameplay result-->
-<!--Ver 1.0-->
+<!--Ver 1.1-->
+<!--Changelog: Dec 30, 19:00 Rewrite the ResultView Page for mobile adaption-->
 <template>
-  <div class="result-view" v-if="beatmap">
-    <div class="result-container">
-      <div class="beatmap-header" :style="{ backgroundImage: `url(${beatmap.background})` }">
-        <div class="header-overlay">
-          <div class="header-top">
-            <router-link :to="`/profile/${beatmap.uploader_uid}`" class="uploader">
-              Uploaded by: {{ beatmap.uploader_name }}
-            </router-link>
-            <span class="bpm">BPM: {{ beatmap.bpm }}</span>
+  <div class="song-card" @click="goToDetail" @mouseenter="hovered = true" @mouseleave="hovered = false" :class="{ hovered }">
+    <div class="song-inner" :style="{ backgroundImage: `url(${song.background || ''})` }">
+      <div class="song-overlay">
+        <div class="song-info">
+          <h3 class="song-title">{{ song.title }}</h3>
+          <p class="song-artist">{{ song.artist }}</p>
+        </div>
+        <div class="song-right">
+          <div class="difficulties">
+            <DifficultyBadge
+                v-for="diff in song.difficulties"
+                :key="diff.bid"
+                :name="diff.name"
+                :level="diff.level"
+                :selected="false"
+            />
           </div>
-          <div class="header-bottom">
-            <h1 class="title">{{ beatmap.title }}</h1>
-            <p class="artist">{{ beatmap.artist }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="result-actions">
-        <div class="diff-badge" :style="diffStyle">
-          {{ diffInfo?.name }} {{ diffInfo?.level }}
-        </div>
-        <div class="action-buttons">
-          <button class="back-btn" @click="goBack">Back</button>
-          <button class="replay-btn" @click="playAgain">Play Again</button>
-        </div>
-      </div>
-
-      <h2 class="score-title">Your Score</h2>
-      <div class="score-card">
-        <div class="rank-display" :style="{ color: rankColor }">{{ result.rank }}</div>
-        <div class="score-info">
-          <div class="score-value">{{ result.score.toLocaleString() }}</div>
-          <div class="accuracy-value">{{ result.accuracy.toFixed(2) }}% Accuracy</div>
-        </div>
-        <div class="score-details">
-          <div class="judgment-counts">
-            Great: {{ result.greatCount }}, Good: {{ result.goodCount }}, Miss: {{ result.missCount }}
-          </div>
-          <div class="ranking-info">
-            Ranking: <span class="ranking-number">#{{ ranking }}</span>
+          <div class="uploader">
+            By: <router-link :to="`/profile/${song.uploader_uid}`" @click.stop>{{ song.uploader_name }}</router-link>
           </div>
         </div>
       </div>
@@ -50,232 +30,138 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { getDifficultyStyle, getRankColor } from '../utils/scoring'
-import api from '../utils/api'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import DifficultyBadge from './DifficultyBadge.vue'
 
-const route = useRoute()
+const props = defineProps({
+  song: Object
+})
+
 const router = useRouter()
+const hovered = ref(false)
 
-const beatmap = ref(null)
-const diffInfo = ref(null)
-const result = ref({
-  score: 0,
-  accuracy: 0,
-  rank: 'D',
-  greatCount: 0,
-  goodCount: 0,
-  missCount: 0,
-  maxCombo: 0
-})
-const ranking = ref(0)
-
-const diffStyle = computed(() => {
-  if (!diffInfo.value) return {}
-  const style = getDifficultyStyle(diffInfo.value.level)
-  return { backgroundColor: style.bg, color: style.text }
-})
-
-const rankColor = computed(() => getRankColor(result.value.rank))
-
-const goBack = () => {
-  if (diffInfo.value) {
-    router.push(`/beatmap/${diffInfo.value.sid}`)
-  } else {
-    router.push('/songs')
-  }
+const goToDetail = () => {
+  router.push(`/beatmap/${props.song.sid}`)
 }
-
-const playAgain = () => {
-  router.push(`/play/${route.params.bid}`)
-}
-
-onMounted(async () => {
-  const savedResult = sessionStorage.getItem('gameResult')
-  if (savedResult) {
-    result.value = JSON.parse(savedResult)
-  }
-
-  try {
-    const res = await api.get(`/beatmaps/difficulty/${route.params.bid}`)
-    diffInfo.value = res.data
-    beatmap.value = res.data.beatmap
-
-    const leaderboardRes = await api.get(`/scores/leaderboard/${route.params.bid}`)
-    const userRank = leaderboardRes.data.findIndex(s => s.score <= result.value.score)
-    ranking.value = userRank === -1 ? leaderboardRes.data.length + 1 : userRank + 1
-  } catch (e) {
-    console.error('Failed to load result data')
-  }
-})
 </script>
 
 <style scoped>
-.result-view {
-  min-height: calc(100vh - 50px);
-  padding: 30px;
-}
-
-.result-container {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.beatmap-header {
-  height: 250px;
-  background-size: cover;
-  background-position: center;
-  border-radius: 7px 7px 0 0;
+.song-card {
+  width: 100%;
+  height: 90px;
+  background: linear-gradient(90deg, #00d4ff 0%, #1A1A1A 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
 
-.header-overlay {
+.song-card.hovered {
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 5px rgba(0, 212, 255, 0.3);
+}
+
+.song-card.hovered .song-inner {
+  width: 99.5%;
+}
+
+.song-inner {
+  width: 99%;
+  height: 100%;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.song-overlay {
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.7) 100%);
-  padding: 20px;
+  background: linear-gradient(90deg, rgba(26,26,26,0.95) 0%, rgba(26,26,26,0.7) 50%, rgba(26,26,26,0.9) 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 25px;
+  box-sizing: border-box;
+}
+
+.song-info {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-}
-
-.uploader {
-  color: #ffffff;
-  font-size: 14px;
-}
-
-.bpm {
-  color: #ffffff;
-  font-size: 14px;
-}
-
-.header-bottom {
-  padding-bottom: 10px;
-}
-
-.title {
-  font-size: 28px;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 5px;
-}
-
-.artist {
-  font-size: 16px;
-  color: #cccccc;
-}
-
-.result-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 20px;
-  background-color: #2a2a2a;
-  border-radius: 0 0 7px 7px;
-}
-
-.diff-badge {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: bold;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.back-btn, .replay-btn {
-  padding: 10px 25px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.2s;
-}
-
-.back-btn {
-  background-color: #00d4ff;
-  color: #1a1a1a;
-}
-
-.back-btn:hover {
-  background-color: #00b8d9;
-}
-
-.replay-btn {
-  background-color: #00d4ff;
-  color: #1a1a1a;
-}
-
-.replay-btn:hover {
-  background-color: #00b8d9;
-}
-
-.score-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #ffffff;
-  margin: 25px 0 15px 10px;
-}
-
-.score-card {
-  display: flex;
-  align-items: center;
-  padding: 25px;
-  background-color: #3a3a3a;
-  border-radius: 7px;
-  gap: 25px;
-}
-
-.rank-display {
-  font-size: 48px;
-  font-weight: bold;
-  min-width: 80px;
-  text-align: center;
-}
-
-.score-info {
+  justify-content: center;
+  min-width: 0;
   flex: 1;
 }
 
-.score-value {
-  font-size: 28px;
-  font-weight: bold;
+.song-title {
+  font-size: 18px;
+  font-weight: 700;
   color: #ffffff;
-  margin-bottom: 5px;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.accuracy-value {
-  font-size: 16px;
+.song-artist {
+  font-size: 13px;
   color: #cccccc;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.score-details {
+.song-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-left: 10px;
+}
+
+.difficulties {
+  display: flex;
+  gap: 6px;
+}
+
+.uploader {
+  font-size: 13px;
+  color: #aaaaaa;
+  min-width: 100px;
   text-align: right;
 }
 
-.judgment-counts {
-  font-size: 14px;
-  color: #aaaaaa;
-  margin-bottom: 5px;
-}
-
-.ranking-info {
-  font-size: 14px;
-  color: #aaaaaa;
-}
-
-.ranking-number {
+.uploader a {
   color: #00d4ff;
-  font-weight: bold;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.uploader a:hover {
+  color: #66e5ff;
+}
+
+@media (max-width: 768px) {
+  .uploader {
+    display: none;
+  }
+  .song-right {
+    gap: 0;
+  }
+  .song-overlay {
+    padding: 0 15px;
+  }
 }
 </style>
