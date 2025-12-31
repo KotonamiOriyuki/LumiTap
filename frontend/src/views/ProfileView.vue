@@ -1,3 +1,5 @@
+<!--Ver 1.1-->
+<!--Changelog: Dec 31, 21:00, adapt to the mobile client and modified the layout-->
 <template>
   <div class="profile-view" v-if="profile">
     <div class="profile-container">
@@ -10,47 +12,55 @@
             </div>
           </div>
           <input
-            ref="avatarInput"
-            type="file"
-            accept="image/*"
-            style="display: none"
-            @change="handleAvatarChange"
+              ref="avatarInput"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleAvatarChange"
           />
         </div>
-        <div class="profile-info">
+        <div class="profile-main-info">
           <div class="username-row">
             <input
-              v-if="isEditing"
-              v-model="editForm.username"
-              class="username-input"
-              placeholder="Username"
+                v-if="isEditing"
+                v-model="editForm.username"
+                class="username-input"
+                placeholder="Username"
             />
             <h1 v-else class="username">{{ profile.username }}</h1>
           </div>
-          <div class="ep-row">
-            <span class="ep-label">EP:</span>
-            <span class="ep-value consolas" :style="{ color: epColor }" :class="{ 'high-ep': highEP }">
-              {{ profile.ep.toFixed(2) }}
-            </span>
+          <div class="stats-row">
+            <div class="ep-group">
+              <div class="ep-row">
+                <span class="ep-label">EP:</span>
+                <span class="ep-value consolas" :style="{ color: epColor }" :class="{ 'high-ep': highEP }">
+                  {{ profile.ep.toFixed(2) }}
+                </span>
+              </div>
+              <div class="ep-hint">*EP: Estimated Performance</div>
+            </div>
+            <div class="rank-group">
+              <span class="rank-label">Global Rank</span>
+              <div class="rank-value">#{{ profile.rank }}</div>
+            </div>
           </div>
-          <div class="ep-hint">*EP: Estimated Performance</div>
         </div>
+<!--        Chenxi Liu: Layout adjustment     -->
         <div class="profile-actions">
+          <button v-if="isOwnProfile && !isEditing" class="edit-btn" @click="startEdit">Edit Profile</button>
           <button v-if="isOwnProfile && !isEditing" class="logout-btn" @click="handleLogout">Logout</button>
-          <button v-if="isOwnProfile && !isEditing" class="edit-btn" @click="startEdit">Edit</button>
+          <button v-if="isOwnProfile && isEditing" class="save-btn" @click="saveEdit">Save Changes</button>
           <button v-if="isOwnProfile && isEditing" class="cancel-btn" @click="cancelEdit">Cancel</button>
-          <button v-if="isOwnProfile && isEditing" class="save-btn" @click="saveEdit">Save</button>
         </div>
-        <div class="rank-display">#{{ profile.rank }}</div>
       </div>
 
       <h2 class="scores-title">Best Scores</h2>
       <div class="scores-card">
         <ScoreCard
-          v-for="(score, index) in scores"
-          :key="score.scid"
-          :score="score"
-          :index="index"
+            v-for="(score, index) in scores"
+            :key="score.scid"
+            :score="score"
+            :index="index"
         />
         <div v-if="scores.length === 0" class="no-scores">
           No scores yet
@@ -210,11 +220,11 @@ watch(() => route.name, () => {
 .profile-card {
   display: flex;
   align-items: center;
-  padding: 25px;
+  padding: 30px;
   background-color: #2a2a2a;
-  border-radius: 7px;
-  gap: 25px;
-  position: relative;
+  border-radius: 12px;
+  gap: 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .avatar-section {
@@ -222,12 +232,13 @@ watch(() => route.name, () => {
 }
 
 .avatar-wrapper {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   overflow: hidden;
   position: relative;
   cursor: pointer;
+  border: 3px solid #3a3a3a;
 }
 
 .avatar-wrapper img {
@@ -247,19 +258,23 @@ watch(() => route.name, () => {
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-.profile-info {
+.profile-main-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .username-row {
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
 }
 
 .username {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
   color: #ffffff;
   margin: 0;
@@ -272,25 +287,37 @@ watch(() => route.name, () => {
   background-color: #3a3a3a;
   border: 1px solid #00d4ff;
   border-radius: 4px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   outline: none;
-  font-family: 'MiSans', sans-serif;
+  width: 100%;
+}
+
+.stats-row {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.ep-group, .rank-group {
+  display: flex;
+  flex-direction: column;
 }
 
 .ep-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 5px;
 }
 
-.ep-label {
-  font-size: 16px;
+.ep-label, .rank-label {
+  font-size: 14px;
   color: #aaaaaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .ep-value {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: bold;
 }
 
@@ -299,34 +326,45 @@ watch(() => route.name, () => {
 }
 
 .ep-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: #666666;
+  margin-top: 2px;
+}
+
+.rank-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00d4ff;
 }
 
 .profile-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .logout-btn, .edit-btn, .cancel-btn, .save-btn {
-  padding: 8px 20px;
-  border-radius: 4px;
+  padding: 10px 20px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: bold;
   cursor: pointer;
   border: none;
-  transition: background-color 0.2s;
-  min-width: 80px;
+  transition: all 0.2s;
+  min-width: 120px;
+  text-align: center;
 }
 
 .logout-btn {
-  background-color: #f44336;
-  color: #ffffff;
+  background-color: transparent;
+  color: #f44336;
+  border: 1px solid #f44336;
 }
 
 .logout-btn:hover {
-  background-color: #d32f2f;
+  background-color: #f44336;
+  color: #ffffff;
 }
 
 .edit-btn {
@@ -336,15 +374,12 @@ watch(() => route.name, () => {
 
 .edit-btn:hover {
   background-color: #00b8d9;
+  transform: translateY(-1px);
 }
 
 .cancel-btn {
-  background-color: #666666;
+  background-color: #444444;
   color: #ffffff;
-}
-
-.cancel-btn:hover {
-  background-color: #555555;
 }
 
 .save-btn {
@@ -352,35 +387,60 @@ watch(() => route.name, () => {
   color: #ffffff;
 }
 
-.save-btn:hover {
-  background-color: #43a047;
-}
-
-.rank-display {
-  position: absolute;
-  top: 20px;
-  right: 25px;
-  font-size: 32px;
-  font-weight: bold;
-  color: #00d4ff;
-}
-
 .scores-title {
   font-size: 22px;
   font-weight: bold;
   color: #ffffff;
-  margin: 25px 0 15px 10px;
+  margin: 30px 0 15px 10px;
 }
 
 .scores-card {
   background-color: #3a3a3a;
-  border-radius: 7px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .no-scores {
-  padding: 30px;
+  padding: 40px;
   text-align: center;
   color: #666666;
+}
+
+@media (max-width: 768px) {
+  .profile-view {
+    padding: 15px;
+  }
+
+  .profile-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 25px 15px;
+    gap: 20px;
+  }
+
+  .username-row {
+    justify-content: center;
+  }
+
+  .username {
+    text-align: center;
+  }
+
+  .stats-row {
+    justify-content: center;
+    gap: 30px;
+  }
+
+  .profile-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .logout-btn, .edit-btn, .cancel-btn, .save-btn {
+    flex: 1;
+    min-width: 0;
+  }
 }
 </style>

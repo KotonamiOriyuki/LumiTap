@@ -3,6 +3,7 @@
 // Every scripts related to scoring systems
 // Changelog: Dec 16, 21:00 Added score calculation to the script
 // Changelog: Dec 18, 20:00 added EP color display
+// Changelog: Dec 31, 10:00 now each combo counts to the final score
 
 // Chenxi Liu: obtain the color for different difficulties
 export function getDifficultyStyle(level) {
@@ -18,20 +19,28 @@ export function getDifficultyStyle(level) {
 }
 
 // Rongze Fan: use sigmoid function to calculate smooth score
-export function calculateScore(greatCount, goodCount, missCount, maxCombo, totalNotes) {
-  const totalJudgments = greatCount + goodCount + missCount
-  if (totalJudgments === 0) return { score: 0, accuracy: 0 }
+// Chenxi Liu: now each combo counts to the final score
+export function calculateScore(judgment, totalNotes, currentCombo) {
+  if (totalNotes === 0) return { accInc: 0, comboInc: 0 }
 
-  const accuracy = ((greatCount * 100 + goodCount * 50) / (totalJudgments * 100)) * 100
-  const accScore = 900000 * (accuracy / 100)
+  let accInc = 0
+  const singleNoteAccValue = 900000 / totalNotes
+  if (judgment === 'great') accInc = singleNoteAccValue
+  if (judgment === 'good') accInc = singleNoteAccValue * 0.5
 
-  const comboRatio = maxCombo / totalNotes
-  const sigmoid = 1 / (1 + Math.exp(-10 * (comboRatio - 0.5)))
-  const comboScore = 100000 * sigmoid
+  let comboInc = 0
+  if (judgment !== 'miss' && currentCombo > 0) {
+    const getNormalizedVal = (c) => {
+      const ratio = c / totalNotes
+      const rawSigmoid = (r) => 1 / (1 + Math.exp(-10 * (r - 0.5)))
+      const minS = rawSigmoid(0)
+      const maxS = rawSigmoid(1)
+      return (rawSigmoid(ratio) - minS) / (maxS - minS)
+    }
+    comboInc = 100000 * (getNormalizedVal(currentCombo) - getNormalizedVal(currentCombo - 1))
+  }
 
-  const score = Math.round(accScore + comboScore)
-
-  return { score, accuracy: Math.round(accuracy * 100) / 100 }
+  return { accInc, comboInc }
 }
 
 export function getRank(accuracy) {
