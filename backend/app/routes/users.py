@@ -3,12 +3,13 @@
 # session management
 # emegency update
 # Changelog: Dec 18 21:00, Added essential calling functions related to personal information
+# Jan 3, 20:30, add offset calls to the backend
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from backend.app.models.user import UserResponse, UserUpdate
-from backend.app.database import users_collection, scores_collection, difficulties_collection, beatmaps_collection
-from backend.app.utils.security import get_current_user, get_optional_user
-from backend.app.utils.ep_calculator import calculate_potential
+from app.models.user import UserResponse, UserUpdate
+from app.database import users_collection, scores_collection, difficulties_collection, beatmaps_collection
+from app.utils.security import get_current_user, get_optional_user
+from app.utils.ep_calculator import calculate_potential
 import uuid
 
 router = APIRouter()
@@ -26,7 +27,8 @@ def check_auth(current_user: dict = Depends(get_optional_user)):
                 "username": current_user["username"],
                 "avatar": current_user.get("avatar"),
                 "ep": current_user.get("ep", 0.0),
-                "rank": rank
+                "rank": rank,
+                "offset": current_user.get("offset", 0.0),
             }
         }
     return {"authenticated": False, "user": None}
@@ -41,7 +43,8 @@ def get_me(current_user: dict = Depends(get_current_user)):
         username=current_user["username"],
         avatar=current_user.get("avatar"),
         ep=current_user.get("ep", 0.0),
-        rank=rank
+        rank=rank,
+        offset=current_user.get("offset", 0.0),
     )
 
 
@@ -58,18 +61,27 @@ def get_user(uid: str):
         username=user["username"],
         avatar=user.get("avatar"),
         ep=user.get("ep", 0.0),
-        rank=rank
+        rank=rank,
+        offset=user.get("offset", 0.0),
+        flag=user.get("flag", None)
     )
 
 
 # Jiarui Li: update personal information (player name)
 @router.put("/api/users/me")
 def update_me(update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    update_data = {}
+    # Handle both username and offset updates incrementally
     if update.username:
         existing = users_collection.find_one({"username": update.username})
         if existing and existing["uid"] != current_user["uid"]:
             raise HTTPException(status_code=400, detail="Username already taken")
-        users_collection.update_one({"uid": current_user["uid"]}, {"$set": {"username": update.username}})
+        update_data["username"] = update.username
+    if update.offset is not None:
+        update_data["offset"] = update.offset
+
+    if update_data:
+        users_collection.update_one({"uid": current_user["uid"]}, {"$set": update_data})
     return {"message": "Updated"}
 
 
@@ -131,7 +143,6 @@ def get_rankings():
     all_users = list(users_collection.find().sort("ep", -1))
     result = []
     for i, u in enumerate(all_users):
-        print(u)
         result.append({
             "rank": i + 1,
             "uid": u.get("uid"),

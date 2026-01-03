@@ -3,15 +3,66 @@
 # Responses related to score submitting
 # Changelog: Dec 16, 20:00 -> Added EP calculation portal
 # Dec 18, 20:30 -> Added leaderboard ranking
+# Jan 1, 20:00 -> Transfer the search algorithm to the backend
 from fastapi import APIRouter, HTTPException, Depends
-from backend.app.models.score import ScoreCreate
-from backend.app.database import scores_collection, difficulties_collection, users_collection
-from backend.app.utils.security import get_current_user
-from backend.app.utils.ep_calculator import get_rank_from_accuracy, calculate_user_ep,  calculate_potential
+from app.models.score import ScoreCreate, ScoreResponse
+from app.database import scores_collection, difficulties_collection, users_collection, beatmaps_collection
+from app.utils.security import get_current_user
+from app.utils.ep_calculator import calculate_user_ep, get_rank_from_accuracy, calculate_potential
 from datetime import datetime
 import uuid
 
 router = APIRouter()
+
+def lcs_length(s1: str, s2: str) -> int:
+    s1, s2 = s1.lower(), s2.lower()
+    m, n = len(s1), len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[m][n]
+
+# Jiarui Li: LCS search algorithm
+@router.get("/api/beatmaps/search")
+def search_beatmaps(q: str = ""):
+    all_beatmaps = list(beatmaps_collection.find())
+    if not q:
+        results = all_beatmaps
+    else:
+        scored = []
+        for b in all_beatmaps:
+            title_score = lcs_length(q, b["title"])
+            artist_score = lcs_length(q, b["artist"])
+            max_score = max(title_score, artist_score)
+            if max_score > 0:
+                scored.append((max_score, b))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        results = [b for _, b in scored]
+
+    response = []
+    for b in results:
+        diffs = list(difficulties_collection.find({"sid": b["sid"]}).sort("level", 1))
+        uploader = users_collection.find_one({"uid": b["uploader_uid"]})
+        response.append({
+            "sid": b["sid"],
+            "title": b["title"],
+            "artist": b["artist"],
+            "bpm": b["bpm"],
+            "background": b.get("background"),
+            "audio": b.get("audio"),
+            "uploader_uid": b["uploader_uid"],
+            "uploader_name": uploader["username"] if uploader else "Unknown",
+            "difficulties": [
+                {"bid": d["bid"], "name": d["name"], "level": d["level"], "note_count": d.get("note_count", 0)}
+                for d in diffs
+            ]
+        })
+    return response
+
 
 # Chenxi Liu: submit the existing score
 @router.post("/api/scores/submit")
@@ -90,3 +141,12 @@ def get_leaderboard(bid: str):
             "rank": s["rank"]
         })
     return result
+
+
+# Zheng Wu: this is required for profile to beatmap
+@router.get("/api/beatmaps/sid-from-bid/{bid}")
+def get_sid_from_bid(bid: str):
+    diff = difficulties_collection.find_one({"bid": bid})
+    if not diff:
+        raise HTTPException(status_code=404, detail="Difficulty not found")
+    return {"sid": diff["sid"]}
