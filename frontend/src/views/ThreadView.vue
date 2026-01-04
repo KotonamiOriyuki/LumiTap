@@ -23,7 +23,10 @@
           </div>
           <div class="post-right">
             <div class="content">{{ thread.content }}</div>
-            <div class="time">{{ fmtDate(thread.created_at) }}</div>
+            <div class="post-footer">
+              <div class="time">{{ fmtDate(thread.created_at) }}</div>
+              <div v-if="isOwner(thread.author_id) || isAdmin()" class="delete-btn" @click="deleteThread">🗑️</div>
+            </div>
           </div>
         </div>
 
@@ -40,7 +43,10 @@
             </div>
             <div class="post-right">
               <div class="content">{{ p.content }}</div>
-              <div class="time">{{ fmtDate(p.created_at) }}</div>
+              <div class="post-footer">
+                <div class="time">{{ fmtDate(p.created_at) }}</div>
+                <div v-if="isOwner(p.author_id) || isAdmin()" class="delete-btn" @click="deleteReply(p.id)">🗑️</div>
+              </div>
             </div>
           </div>
         </div>
@@ -64,15 +70,25 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 import api from '../utils/api'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const thread = ref(null)
 const posts = ref([])
 const loading = ref(true)
 const replyText = ref('')
 const posting = ref(false)
+
+const isOwner = (authorId) => {
+  return userStore.isAuthenticated && userStore.user?.uid === authorId
+}
+
+const isAdmin = () => {
+  return userStore.user.flag === "admin"
+}
 
 const fmtDate = (ts) => {
   if (!ts) return ''
@@ -120,11 +136,30 @@ const submitReply = async () => {
   }
 }
 
+const deleteThread = async () => {
+  if (!confirm('Are you sure you want to delete this thread? All replies will be removed.')) return
+  try {
+    await api.delete(`/forum/thread/${route.params.id}`)
+    goBack()
+  } catch (e) {
+    alert('Failed to delete thread.')
+  }
+}
+
+const deleteReply = async (postId) => {
+  if (!confirm('Are you sure you want to delete this reply?')) return
+  try {
+    await api.delete(`/forum/post/${postId}`)
+    await load()
+  } catch (e) {
+    alert(e)
+  }
+}
+
 onMounted(load)
 </script>
 
 <style scoped>
-/* 新增样式 */
 .post-left.clickable {
   cursor: pointer;
   transition: opacity 0.2s;
@@ -179,9 +214,22 @@ onMounted(load)
 }
 .avatar.small .avatar-ph { width: 40px; height: 40px; font-size: 16px; }
 .author { font-size: 14px; color: #00d4ff; margin-top: 8px; font-weight: bold; }
-.post-right { flex: 1; }
-.content { color: #ddd; font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
-.time { margin-top: 15px; font-size: 12px; color: #666; }
+.post-right { flex: 1; display: flex; flex-direction: column; }
+.content { color: #ddd; font-size: 15px; line-height: 1.7; white-space: pre-wrap; flex: 1; }
+.post-footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.time { font-size: 12px; color: #666; }
+.delete-btn {
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+.delete-btn:hover { opacity: 1; }
 
 .replies-section { margin-top: 40px; }
 .replies-section h3 { color: #fff; margin-bottom: 20px; }

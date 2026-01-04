@@ -68,11 +68,13 @@ onMounted(() => {
 
 <style scoped>
 #app {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
 main {
-  min-height: 100vh;
+  flex-grow: 1;
 }
 
 main.with-header {

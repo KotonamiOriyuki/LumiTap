@@ -3,13 +3,12 @@
 # session management
 # emegency update
 # Changelog: Dec 18 21:00, Added essential calling functions related to personal information
-# Jan 3, 20:30, add offset calls to the backend
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from app.models.user import UserResponse, UserUpdate
-from app.database import users_collection, scores_collection, difficulties_collection, beatmaps_collection
-from app.utils.security import get_current_user, get_optional_user
-from app.utils.ep_calculator import calculate_potential
+from backend.app.models.user import UserResponse, UserUpdate
+from backend.app.database import users_collection, scores_collection, difficulties_collection, beatmaps_collection
+from backend.app.utils.security import get_current_user, get_optional_user
+from backend.app.utils.ep_calculator import calculate_potential
 import uuid
 
 router = APIRouter()
@@ -29,6 +28,7 @@ def check_auth(current_user: dict = Depends(get_optional_user)):
                 "ep": current_user.get("ep", 0.0),
                 "rank": rank,
                 "offset": current_user.get("offset", 0.0),
+                "flag": current_user.get("flag", None)
             }
         }
     return {"authenticated": False, "user": None}
@@ -45,6 +45,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         ep=current_user.get("ep", 0.0),
         rank=rank,
         offset=current_user.get("offset", 0.0),
+        flag=current_user.get("flag", None),
     )
 
 
