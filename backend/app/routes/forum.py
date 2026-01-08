@@ -1,6 +1,7 @@
 # Created: Dec 19, 16:00
-# Ver 1.0
+# Ver 1.1
 # API Calling functions of forum view
+# Changelog Jan 04, add thread/post deletion
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -269,3 +270,38 @@ def init_forum():
             db.forum_subforums.insert_one(sf)
 
     return {"message": "Forum initialized"}
+
+
+# Cheng Wang: thread and reply deletion
+@router.delete("/thread/{tid}")
+def delete_thread(tid: str, user: dict = Depends(get_current_user)):
+    oid = safe_oid(tid)
+
+    if not oid:
+        raise HTTPException(400, "Invalid ID")
+    t = db.forum_threads.find_one({"_id": oid})
+    if not t:
+        raise HTTPException(404, "Not found")
+    if t.get("author_id") != user["uid"]:
+        if user["flag"] != "admin":
+            raise HTTPException(403, "Permission denied")
+
+    db.forum_posts.delete_many({"thread_id": tid})
+    db.forum_threads.delete_one({"_id": oid})
+    return {"message": "Thread deleted"}
+
+
+@router.delete("/post/{pid}")
+def delete_post(pid: str, user: dict = Depends(get_current_user)):
+    oid = safe_oid(pid)
+    if not oid:
+        raise HTTPException(400, "Invalid ID")
+    post = db.forum_posts.find_one({"_id": oid})
+    if not post:
+        raise HTTPException(404, "Not found")
+    if post.get("author_id") != user["uid"]:
+        if user["flag"] != "admin":
+            raise HTTPException(403, "Permission denied")
+
+    db.forum_posts.delete_one({"_id": oid})
+    return {"message": "Post deleted"}
